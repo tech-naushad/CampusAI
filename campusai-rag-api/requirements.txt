@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+langchain
+langchain-openai
+pinecone
+pydantic
+sentence-transformers
+python-dotenv
+requests
