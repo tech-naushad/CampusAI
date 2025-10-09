@@ -8,7 +8,9 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import os
 from dotenv import load_dotenv
- 
+import re
+from fastapi.responses import HTMLResponse
+
 # Setup environment variables for Pinecone
 load_dotenv()
 
@@ -27,6 +29,24 @@ if open_ai_api_key is None:
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 app = FastAPI(title="CampusAI API", version="1.0")
+
+def extract_html_flexible(summary: str) -> str:
+    # Look for '```
+    match = re.search(r"```html\s*([\s\S]*?)```", summary)
+    if match:
+        return match.group(1).strip()
+    # If not, look for '### HTML Format:' marker and return everything after
+    idx = summary.find('### HTML Format:')
+    if idx != -1:
+        block = summary[idx + len('### HTML Format:'):].strip()
+        # Remove leading triple backticks or "html"
+        block = re.sub(r'^```html', '', block)
+        block = re.sub(r'^```', '', block)
+        # Remove trailing triple backticks
+        block = re.sub(r'```$', '', block)
+        return block.strip()
+    # Fallback: return the full summary if nothing found
+    return summary.strip()
 
 @app.get("/search")
 def ask(query: str):
@@ -51,15 +71,16 @@ def ask(query: str):
      
      rag_context = "\n\n".join(context_chunks) 
      prompt = PromptTemplate(
-          input_variables=["query", "rag_context"],
-          template="""You are an AI assistant that helps users find information about university programs based on the following context:
-          {rag_context} \n\n
-
-          Question: {query}
-          context above. If the answer is not contained within the context, respond with "I don't know".
-          provide a concise and accurate answer based on the context above
-          Answer clearly and concisely:"
-          """
+         input_variables=["query", "rag_context"],
+         template="""You are an AI assistant that helps users find information about university programs based on the following context:
+         {rag_context} \n\n
+         Question: {query}
+         context above. If the answer is not contained within the context, respond with "I don't know".
+         provide a concise and accurate answer based on the context above
+         Answer clearly and concisely:
+         Also, format the result as an HTML block for web display (enclose the final result in <html>...</html>) and 
+         display each record in html card with border size 2px color light gray round corner 5px
+         """
      )
       
      #llm = ChatOpenAI(api_key=open_ai_api_key, model="gpt-4o-mini", temperature=0)
@@ -72,4 +93,7 @@ def ask(query: str):
      chain = LLMChain(llm=llm, prompt=prompt)
      summary = chain.run(query=query, rag_context=rag_context)
 
-     return {"query": query, "response": summary}
+     # Extract HTML block from LLM output:
+     html_only = extract_html_flexible(summary)
+     
+     return HTMLResponse(content=html_only)

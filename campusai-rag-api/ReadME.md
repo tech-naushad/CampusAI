@@ -5,3 +5,5 @@ py -m venv venv
 
 # Activate environment : 
 venv\Scripts\activate 
+
+uvicorn main:app --reload
