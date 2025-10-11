@@ -9,8 +9,7 @@ from langchain.chains import LLMChain
 import os
 from dotenv import load_dotenv
 import re
-from fastapi.responses import HTMLResponse, StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 # Setup environment variables for Pinecone
 load_dotenv()
@@ -29,21 +28,7 @@ if open_ai_api_key is None:
 # Embedding model
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-
 app = FastAPI(title="CampusAI API", version="1.0")
-origins = [
-    "http://localhost:5173",  # Add this for your Vite frontend  
-    "http://127.0.0.1:5173"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 
 def extract_html_flexible(summary: str) -> str:
     # Look for '```
@@ -64,7 +49,7 @@ def extract_html_flexible(summary: str) -> str:
     return summary.strip()
 
 @app.get("/search")
-async def ask(query: str):
+def ask(query: str):
      #embedding = model.encode([query]).tolist()
      query_embedding = model.encode([query])[0].tolist()
      
@@ -85,7 +70,6 @@ async def ask(query: str):
                   
      
      rag_context = "\n\n".join(context_chunks) 
-
      prompt = PromptTemplate(
          input_variables=["query", "rag_context"],
          template="""You are an AI assistant that helps users find information about university programs based on the following context:
@@ -98,34 +82,18 @@ async def ask(query: str):
          display each record in html card with border size 2px color light gray round corner 5px
          """
      )
-     # Render the prompt string directly
-     prompt_str = prompt.format(query=query, rag_context=rag_context) 
+      
      #llm = ChatOpenAI(api_key=open_ai_api_key, model="gpt-4o-mini", temperature=0)
      
      llm = ChatOpenAI(   
-        model="gpt-4o-mini",
-        temperature=0,
-        streaming = True
+     model="gpt-4o-mini",
+     temperature=0
      )
      
-     #chain = LLMChain(llm=llm, prompt=prompt)
-     #summary = chain.run(query=query, rag_context=rag_context)
-     from typing import AsyncGenerator
+     chain = LLMChain(llm=llm, prompt=prompt)
+     summary = chain.run(query=query, rag_context=rag_context)
 
-     async def llm_stream() -> AsyncGenerator[str, None]:
-         async for token in llm.astream(prompt_str):
-             if hasattr(token, 'content'):
-                 # If token is a Message type
-                 chunk = token.content
-             else:
-                 chunk = str(token)
-             yield str(chunk)  # Ensure only strings are yielded
-
-     headers = {
-         "Cache-Control": "no-cache",
-         "Content-Type": "text/html; charset=utf-8",
-         "Transfer-Encoding": "chunked",
-         "X-Accel-Buffering": "no"  # disables buffering in nginx if used
-     }
-     return StreamingResponse(llm_stream(), media_type="text/html", headers=headers)
-     #return HTMLResponse(content=html_only)
+     # Extract HTML block from LLM output:
+     html_only = extract_html_flexible(summary)
+     
+     return HTMLResponse(content=html_only)
