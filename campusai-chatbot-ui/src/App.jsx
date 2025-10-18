@@ -413,5 +413,6 @@ export default function UniversityChatbot() {
         </div>
       </div>
     </div>
+    
   );
 }

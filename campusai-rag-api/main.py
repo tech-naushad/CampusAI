@@ -43,26 +43,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Query filter: block known conversational/non-domain queries up front
+def is_domain_query(query: str) -> bool:
+    greetings = ['hello', 'hi', 'hey', 'greetings', 'how are you']
+    return not any(greet in query.lower() for greet in greetings)
 
-
-def extract_html_flexible(summary: str) -> str:
-    # Look for '```
-    match = re.search(r"```html\s*([\s\S]*?)```", summary)
-    if match:
-        return match.group(1).strip()
-    # If not, look for '### HTML Format:' marker and return everything after
-    idx = summary.find('### HTML Format:')
-    if idx != -1:
-        block = summary[idx + len('### HTML Format:'):].strip()
-        # Remove leading triple backticks or "html"
-        block = re.sub(r'^```html', '', block)
-        block = re.sub(r'^```', '', block)
-        # Remove trailing triple backticks
-        block = re.sub(r'```$', '', block)
-        return block.strip()
-    # Fallback: return the full summary if nothing found
-    return summary.strip()
-
+def remove_code_fences(text: str) -> str:
+    # Remove opening code fence including optional language, and any closing code fence
+    text = re.sub(r"^```[a-zA-Z]*\n", "", text)  # Opening, at the start of string
+    text = re.sub(r"```$", "", text)               # Closing, at the end of string
+    text = text.replace("```", "")
+    return text.strip()
+    
+ 
 @app.get("/search")
 async def ask(query: str):
      #embedding = model.encode([query]).tolist()
@@ -85,22 +78,36 @@ async def ask(query: str):
                   
      
      rag_context = "\n\n".join(context_chunks) 
-
+    # If context is empty, return immediately
+     if not rag_context.strip():
+      return HTMLResponse('<html>I don\'t know</html>', status_code=200)
+     
      prompt = PromptTemplate(
          input_variables=["query", "rag_context"],
          template="""You are an AI assistant that helps users find information about university programs based on the following context:
          {rag_context} \n\n
          Question: {query}
-         context above. If the answer is not contained within the context, respond with "I don't know".
-         provide a concise and accurate answer based on the context above
-         Answer clearly and concisely:
-         Also, format the result as an HTML block for web display (enclose the final result in <html>...</html>) and 
-         display each record in html card with border size 2px color light gray round corner 5px
-         """
+        
+        Instructions:
+            - ONLY use information found in rag_context. NEVER invent, guess, or add program names or details not in context.
+            - If there is no answer in the context, output ONLY <html>I don't know</html>.
+            - If programs matching the question exist in rag_context, output EACH as a valid HTML card as shown below, all wrapped in a single <html>...</html> block:
+        
+        <html>
+        <div style="border:1px solid #d3d3d3; border-radius:5px; padding:14px; margin-bottom:16px;">
+        <strong>Program Name:</strong> ...
+        <!-- More info fields as needed -->
+        </div>
+        <!-- Repeat for each matched record -->
+        </html>
+
+        DO NOT output any markdown, triple backticks, or plain text. Only valid HTML.
+        
+        """
      )
      # Render the prompt string directly
      prompt_str = prompt.format(query=query, rag_context=rag_context) 
-     #llm = ChatOpenAI(api_key=open_ai_api_key, model="gpt-4o-mini", temperature=0)
+    
      
      llm = ChatOpenAI(   
         model="gpt-4o-mini",
@@ -128,4 +135,4 @@ async def ask(query: str):
          "X-Accel-Buffering": "no"  # disables buffering in nginx if used
      }
      return StreamingResponse(llm_stream(), media_type="text/html", headers=headers)
-     #return HTMLResponse(content=html_only)
+    
