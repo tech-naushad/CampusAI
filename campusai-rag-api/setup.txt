@@ -1,0 +1,12 @@
+## Setup steps
+# Create virtual environment
+py -m venv venv
+
+# Activate environment : 
+venv\Scripts\activate 
+
+uvicorn main:app --reload
+
+uvicorn app.main:app --reload --reload-dir app
+
+pip install watchfiles
