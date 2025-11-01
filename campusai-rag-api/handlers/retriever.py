@@ -7,7 +7,8 @@ class Retriever:
         self.model = SentenceTransformer(config.model_name)
         self.pinecone = Pinecone(api_key=config.pinecone_api_key)
         self.pinecone_index = config.pinecone_index
-
+        print("Retriever called with index:", self.pinecone_index)
+        
         if self.pinecone_index is None:
             raise ValueError("PINECONE_INDEX is not set in configuration.")
         self.index = self.pinecone.Index(self.pinecone_index)

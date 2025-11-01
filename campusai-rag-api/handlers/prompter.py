@@ -13,20 +13,24 @@ class Prompter:
 
             Question: {query}
             
-            Instructions:
-                - ONLY use information found in context. NEVER invent, guess, or add program names or details not in context.
-                - If there is no answer in the context, output ONLY <html>I don't know</html>.
-                - If programs matching the question exist in context, output EACH as a valid HTML card as shown below, all wrapped in a single <html>...</html> block:
+           INSTRUCTIONS:
+            - ONLY use facts found in the context above.
+            - DO NOT invent or infer details not explicitly mentioned.
+            - If no relevant information exists, respond exactly with: <html>I don't know</html>.
+            - Output each matched program in the following HTML format (wrapped in one <html>...</html> block):
+
             
             <html>
-            <div style="border:1px solid #d3d3d3; border-radius:5px; padding:14px; margin-bottom:16px;">
+            <div style="margin-bottom: 16px;width: 100%; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); background-color: #F9FAFB;">
                 <strong>Program Name:</strong> ...
                 <!-- More info fields as needed -->
+                <hr style="margin: 12px 0; border-color: #D1D5DB;" />
             </div>
             <!-- Repeat for each matched record -->
             </html>
-
-            DO NOT output any markdown, triple backticks, or plain text. Only valid HTML.
+            REMEMBER:
+            - Do not use markdown, triple backticks, or plain text.
+            - Never generate content not present in the context.
             """
         )
 

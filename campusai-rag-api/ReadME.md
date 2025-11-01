@@ -7,3 +7,7 @@ py -m venv venv
 venv\Scripts\activate 
 
 uvicorn main:app --reload
+
+uvicorn app.main:app --reload --reload-dir app
+
+pip install watchfiles
