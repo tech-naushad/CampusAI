@@ -87,8 +87,4 @@ This version **speaks to both technical leads and HR**:
 - HR sees **business impact, your role, and value to the company**.
 - Tech leads see **architecture, models, streaming design, and project structure**.
 
----
 
-If you want, I can also **add a small visual diagram** showing the **RAG + streaming flow** for even stronger impact—it often grabs attention in GitHub repos and resumes.  
-
-Do you want me to create that diagram?
