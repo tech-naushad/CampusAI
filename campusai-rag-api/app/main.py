@@ -1,13 +1,16 @@
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request, HTTPException
 from fastapi.concurrency import asynccontextmanager
 from fastapi.responses import HTMLResponse
+import httpx
 from api_requests.query_request import QueryRequest
 from config import Config
-from middlewares.middleware_cors import add_cors_middleware
 from handlers.response import ResponseHandler
 from handlers.retriever import Retriever
 from handlers.prompter import Prompter
 from handlers.model import ModelHelper
+from middlewares.cors_middleware import CorsMiddleware
+from middlewares.token_middleware import TokenMiddleware
+from services.auth_service import AuthService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,9 +31,10 @@ app = FastAPI(title="CampusAI API",
               version="1.0.0",
               lifespan=lifespan)
 
-add_cors_middleware(app)      
+app.add_middleware(TokenMiddleware)
+app.add_middleware(CorsMiddleware)
+auth_service = AuthService()
 
- # once at startup
 
 @app.post("/search", response_description="The CampusAI response to the students query")
 async def search(request: QueryRequest, app_request: Request): 
@@ -58,3 +62,12 @@ async def search(request: QueryRequest, app_request: Request):
          prompt_str=prompt_str
      )
 
+@app.get("/auth/token")
+async def get_azure_access_token():
+    try:
+        token_response = await auth_service.get_access_token()
+        return {"status": "success", "data": token_response}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Azure Auth failed: {e.response.text}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
